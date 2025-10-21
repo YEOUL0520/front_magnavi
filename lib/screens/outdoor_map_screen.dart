@@ -2,17 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'controllers/route_controller.dart';
 
-// ----------------------------
-// 상태 접근용 static holder
-// ----------------------------
 class OutdoorMapScreenStateHolder {
   static _OutdoorMapScreenState? state;
 }
 
-// =============================
-// OutdoorMapScreen 본체
-// =============================
 class OutdoorMapScreen extends StatefulWidget {
   const OutdoorMapScreen({super.key});
 
@@ -25,26 +20,29 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
   bool _mapInitialized = false;
   bool _isLoading = true;
 
-  StreamSubscription<Position>? _posSub; // 위치 스트림 구독
+  bool _hasRoute = false;
+  StreamSubscription<Position>? _posSub;
+
+  static const _initialPos = NLatLng(35.8355, 128.7537); // 영남대
+  static const _initialZoom = 15.0;
 
   @override
   void initState() {
     super.initState();
     OutdoorMapScreenStateHolder.state = this;
     _initLocationPermission();
+    RouteController.I.addListener(_onRouteEvent);
   }
 
   @override
   void dispose() {
+    RouteController.I.removeListener(_onRouteEvent);
     OutdoorMapScreenStateHolder.state = null;
     _posSub?.cancel();
     _controller = null;
     super.dispose();
   }
 
-  // ----------------------------
-  // 위치 권한 초기화
-  // ----------------------------
   Future<void> _initLocationPermission() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -77,9 +75,6 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
     }
   }
 
-  // ----------------------------
-  // 현재 위치 가져오기
-  // ----------------------------
   Future<Position?> _getCurrentPosition() async {
     try {
       return await Geolocator.getCurrentPosition(
@@ -92,9 +87,7 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
     }
   }
 
-  // ----------------------------
-  // HomeScreen에서 호출하는 카메라 이동
-  // ----------------------------
+  // HomeScreen의 공용 현위치 버튼이 호출
   Future<void> moveToCurrentLocation() async {
     final pos = await _getCurrentPosition();
     if (pos != null && _controller != null) {
@@ -109,34 +102,27 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
     }
   }
 
-  // ----------------------------
-  // 지도 준비 완료 콜백
-  // ----------------------------
   Future<void> _onMapReady(NaverMapController controller) async {
     if (_mapInitialized) return;
     _controller = controller;
     _mapInitialized = true;
 
     try {
-      // 오버레이 보이기 + 스타일(주황색 원)
-      // TODO: 스타일 수정 (실내 마커와 동일 디자인 적용)
       final overlay = await _controller!.getLocationOverlay();
       overlay.setIsVisible(true);
-      overlay.setCircleColor(const Color(0x59FF9800)); // 약 35% 알파
+      overlay.setCircleColor(const Color(0x59FF9800)); // ~35% 알파
       overlay.setCircleOutlineColor(const Color(0xFFFFB74D));
       overlay.setCircleOutlineWidth(2.0);
 
-      // 최초 한 번 현재 위치 적용 (마커 제자리 방지)
       final p0 = await _getCurrentPosition();
       if (p0 != null) {
         overlay.setPosition(NLatLng(p0.latitude, p0.longitude));
       }
 
-      // 위치 스트림 구독 → 오버레이 좌표 실시간 갱신 (마커가 내 위치를 “따라” 움직임)
       _posSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          distanceFilter: 1, // 1m 이상 이동 시 업데이트
+          distanceFilter: 1,
         ),
       ).listen((pos) async {
         try {
@@ -149,14 +135,61 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
     } catch (e) {
       debugPrint('오버레이 설정 오류: $e');
     }
-
-    // 카메라는 버튼으로만 이동 (기존 동작 유지)
-    // await moveToCurrentLocation();
   }
 
-  // ----------------------------
-  // UI 빌드
-  // ----------------------------
+  Future<void> _onRouteEvent() async {
+    if (_controller == null) return;
+
+    if (RouteController.I.clearRequested) {
+      await _controller!.clearOverlays();
+      await _controller!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(target: _initialPos, zoom: _initialZoom),
+      );
+      if (mounted) setState(() => _hasRoute = false);
+      return;
+    }
+
+    final payload = RouteController.I.route;
+    if (payload == null || payload.path.isEmpty) return;
+
+    await _controller!.clearOverlays();
+
+    final overlays = <NAddableOverlay>{
+      if (payload.start != null)
+        NMarker(id: 'start', position: payload.start!, caption: const NOverlayCaption(text: '출발')),
+      if (payload.end != null)
+        NMarker(id: 'end', position: payload.end!, caption: const NOverlayCaption(text: '도착')),
+      NPolylineOverlay(id: 'route', coords: payload.path, width: 6, color: Colors.blue),
+    };
+
+    await _controller!.addOverlayAll(overlays);
+
+    final b = _boundsFrom(payload.path);
+    if (b != null) {
+      await _controller!.updateCamera(
+        NCameraUpdate.fitBounds(b, padding: const EdgeInsets.all(48)),
+      );
+    }
+
+    if (mounted) setState(() => _hasRoute = true);
+  }
+
+  NLatLngBounds? _boundsFrom(List<NLatLng> coords) {
+    if (coords.isEmpty) return null;
+    double minLat = coords.first.latitude, maxLat = coords.first.latitude;
+    double minLng = coords.first.longitude, maxLng = coords.first.longitude;
+    for (final p in coords) {
+      if (p.latitude  < minLat) minLat = p.latitude;
+      if (p.latitude  > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    return NLatLngBounds(
+      southWest: NLatLng(minLat, minLng),
+      northEast: NLatLng(maxLat, maxLng),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -172,14 +205,24 @@ class _OutdoorMapScreenState extends State<OutdoorMapScreen> {
             onMapReady: _onMapReady,
             options: const NaverMapViewOptions(
               initialCameraPosition: NCameraPosition(
-                target: NLatLng(35.8355, 128.7537), // 영남대 기본 좌표
-                zoom: 15,
+                target: _initialPos,
+                zoom: _initialZoom,
               ),
               indoorEnable: false,
-              locationButtonEnable: false, // 직접 만든 버튼 사용
+              locationButtonEnable: false, // ❌ 기본 버튼 끔 — HomeScreen 공용 버튼만 사용
               consumeSymbolTapEvents: false,
             ),
           ),
+
+          if (_hasRoute)
+            Positioned(
+              left: 12,
+              top: MediaQuery.of(context).padding.top + 12,
+              child: const Chip(
+                avatar: Icon(Icons.route_outlined, size: 18),
+                label: Text('경로 표시 중'),
+              ),
+            ),
         ],
       ),
     );

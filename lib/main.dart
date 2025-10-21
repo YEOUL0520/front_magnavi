@@ -17,7 +17,7 @@ Future<void> main() async {
 
   // ✅ .env 파일 로드
   await dotenv.load(fileName: ".env");
-
+  
 
   // ✅ Kakao SDK 초기화 (.env에서 읽어오기)
   final kakaoNativeAppKey = dotenv.env['KAKAO_NATIVE_APP_KEY'];
@@ -36,6 +36,7 @@ Future<void> main() async {
     try {
       await FlutterNaverMap().init(
         clientId: naverClientId,
+  
         onAuthFailed: (ex) {
           debugPrint("❌ 네이버맵 인증 실패: $ex");
         },
@@ -53,6 +54,8 @@ Future<void> main() async {
 
   runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -125,6 +128,9 @@ class _AuthGateState extends State<AuthGate> {
       (_) => false,
     );
   }
+
+  
+
 
   @override
   Widget build(BuildContext context) {
