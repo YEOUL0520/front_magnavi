@@ -156,7 +156,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   obscureText: _obscureConfirmPw,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPw ? Icons.visibility_off : Icons.visibility,
+                      _obscureConfirmPw
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: AppColors.grayscale.s500,
                     ),
                     onPressed: () {

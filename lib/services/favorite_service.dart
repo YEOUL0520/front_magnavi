@@ -1,73 +1,150 @@
-import 'dart:async';
 import 'dart:convert';
-import '../api/api_client.dart'; // http 대신 ApiClient를 import
-import '../models/favorite_model.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:midas_project/models/favorite_model.dart';
 
 class FavoriteService {
-  static final FavoriteService _instance = FavoriteService._internal();
-  factory FavoriteService() => _instance;
-  FavoriteService._internal();
+  static const String _baseUrl = 'http://13.125.127.75:8000';
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // ApiClient 인스턴스를 가져와 사용
-  final ApiClient _apiClient = ApiClient();
+  /// 헤더에 토큰 추가
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _secureStorage.read(key: 'access_token');
+    return {
+      'accept': 'application/json',
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
-  Future<List<Favorite>> getFavorites() async {
-    final response = await _apiClient.get('/favorites/');
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+  /// 즐겨찾기 목록 조회
+  Future<List<Favorite>> getFavorites({int skip = 0, int limit = 100}) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/favorites/?skip=$skip&limit=$limit');
+
+    final response = await http.get(uri, headers: headers);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
       return data.map((json) => Favorite.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load favorites. Status code: ${response.statusCode}');
+      throw Exception('즐겨찾기 목록 조회 실패: ${response.statusCode} ${response.body}');
     }
   }
 
-  /// 기존 메서드 (다른 곳에서 쓰고 있으면 유지)
-  Future<void> addFavorite(Favorite favorite) async {
-    // 주의: favorite.toJson()이 camelCase를 내보내면 백엔드 스키마와 불일치할 수 있음
-    final response = await _apiClient.post(
-      '/favorites/',
-      body: favorite.toJson(),
-    );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to add favorite. Status code: ${response.statusCode}');
-    }
-  }
-
-  /// ✅ 스웨거 스키마에 정확히 맞춘 place 등록 (POST /favorites/)
-  /// - type: "place"
-  /// - name: 별칭
-  /// - address: 주소
-  /// - place_category: 'home' | 'work' | 사용자 입력
-  /// - bus_number / station_name / station_id: null
-  /// - id는 서버 생성 → 보내지 않음(필요하면 주석 풀고 null 전송)
-  Future<void> addFavoritePlacePost({
+  /// 즐겨찾기 추가 (장소)
+  Future<Favorite> addFavoritePlacePost({
     required String name,
     required String address,
     required String placeCategory,
+    String? id,
   }) async {
-    final response = await _apiClient.post(
-      '/favorites/',
-      body: {
-        "id": "string3", // 서버가 요구하면 주석 해제
-        "type": "place",
-        "name": name,
-        "address": address,
-        "place_category": placeCategory,
-        "bus_number": null,
-        "station_name": null,
-        "station_id": null,
-      },
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/favorites/');
+
+    // ID가 제공되지 않으면 자동 생성
+    final favoriteId = id ?? 'place_${DateTime.now().millisecondsSinceEpoch}';
+
+    final body = jsonEncode({
+      'id': favoriteId,
+      'type': 'place',
+      'name': name,
+      'address': address,
+      'place_category': placeCategory,
+      'bus_number': null,
+      'station_name': null,
+      'station_id': null,
+    });
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: body,
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to add favorite. Status code: ${response.statusCode}, body: ${response.body}');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Favorite.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('즐겨찾기 추가 실패: ${response.statusCode} ${response.body}');
     }
   }
 
+  /// 즐겨찾기 추가 (버스)
+  Future<Favorite> addFavoriteBus({
+    required String id,
+    required String name,
+    required String busNumber,
+  }) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/favorites/');
+
+    final body = jsonEncode({
+      'id': id,
+      'type': 'bus',
+      'name': name,
+      'address': null,
+      'place_category': null,
+      'bus_number': busNumber,
+      'station_name': null,
+      'station_id': null,
+    });
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: body,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Favorite.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('즐겨찾기 추가 실패: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  /// 즐겨찾기 추가 (정류장)
+  Future<Favorite> addFavoriteBusStop({
+    required String id,
+    required String name,
+    required String stationName,
+    required String stationId,
+  }) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/favorites/');
+
+    final body = jsonEncode({
+      'id': id,
+      'type': 'busStop',
+      'name': name,
+      'address': null,
+      'place_category': null,
+      'bus_number': null,
+      'station_name': stationName,
+      'station_id': stationId,
+    });
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: body,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Favorite.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('즐겨찾기 추가 실패: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  /// 즐겨찾기 삭제
   Future<void> removeFavorite(String favoriteId) async {
-    final response = await _apiClient.delete('/favorites/$favoriteId');
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to delete favorite. Status code: ${response.statusCode}');
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/favorites/$favoriteId');
+
+    final response = await http.delete(uri, headers: headers);
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('즐겨찾기 삭제 실패: ${response.statusCode} ${response.body}');
     }
   }
 }
