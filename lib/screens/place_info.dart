@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:midas_project/theme/app_colors.dart';
 import 'package:midas_project/theme/app_theme.dart';
 import 'package:midas_project/function/location_service.dart';
+import 'package:midas_project/services/favorite_service.dart';
+import 'package:midas_project/models/favorite_model.dart';
 
 class SlideUpCard extends StatefulWidget {
   final VoidCallback onClose;
@@ -20,10 +22,17 @@ class SlideUpCard extends StatefulWidget {
 
 class _SlideUpCardState extends State<SlideUpCard> {
   late final LocationService _locationService;
+  final FavoriteService _favoriteService = FavoriteService();
+
+  bool _isFavorite = false;
+  bool _checkingFavorite = true;
+  bool _processingFavorite = false;
+  String? _favoriteId;
 
   @override
   void initState() {
     super.initState();
+
     // LocationService 인스턴스 확보
     try {
       _locationService = Get.find<LocationService>();
@@ -31,11 +40,152 @@ class _SlideUpCardState extends State<SlideUpCard> {
       _locationService = Get.put(LocationService());
     }
 
-    // ⚠️ 필드는 if ( != null )로 승격이 안 됨 → 로컬 변수로 받아서 체크
     final mid = widget.markerId;
     if (mid != null && mid.isNotEmpty) {
       _locationService.setMarkerId(mid);
     }
+
+    // 즐겨찾기 상태 확인
+    _checkFavoriteStatus();
+  }
+
+  /// 즐겨찾기 상태 확인
+  Future<void> _checkFavoriteStatus() async {
+    if (widget.markerId == null) {
+      setState(() => _checkingFavorite = false);
+      return;
+    }
+
+    try {
+      final favorites = await _favoriteService.getFavorites();
+
+      // markerId로 즐겨찾기 찾기 (place 타입이면서 이름이나 주소가 markerId와 관련)
+      final favorite = favorites.firstWhereOrNull((fav) =>
+          fav.type == FavoriteType.place &&
+          (fav.id.contains(widget.markerId!) || fav.name == widget.markerId));
+
+      if (mounted) {
+        setState(() {
+          _isFavorite = favorite != null;
+          _favoriteId = favorite?.id;
+          _checkingFavorite = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('즐겨찾기 상태 확인 실패: $e');
+      if (mounted) {
+        setState(() => _checkingFavorite = false);
+      }
+    }
+  }
+
+  /// 즐겨찾기 추가
+  Future<void> _addFavorite() async {
+    if (_processingFavorite) return;
+
+    final location = _locationService.location.value;
+    if (location == null) {
+      _showSnackBar('위치 정보를 불러올 수 없습니다.');
+      return;
+    }
+
+    setState(() => _processingFavorite = true);
+
+    try {
+      // 고유 ID 생성 (place_markerId_timestamp)
+      final uniqueId =
+          'place_${widget.markerId}_${DateTime.now().millisecondsSinceEpoch}';
+
+      await _favoriteService.addFavoritePlacePost(
+        id: uniqueId,
+        name: location.locationName ?? widget.markerId ?? '위치',
+        address: location.address,
+        placeCategory:
+            'work', // 'home', 'work', 'convenienceStore', 'school', 'etc' 중 하나
+      );
+
+      if (mounted) {
+        setState(() {
+          _isFavorite = true;
+          _favoriteId = uniqueId;
+          _processingFavorite = false;
+        });
+        _showSnackBar('즐겨찾기에 추가되었습니다.');
+      }
+    } catch (e) {
+      debugPrint('즐겨찾기 추가 실패: $e');
+      if (mounted) {
+        setState(() => _processingFavorite = false);
+        _showSnackBar('즐겨찾기 추가에 실패했습니다: $e');
+      }
+    }
+  }
+
+  /// 즐겨찾기 삭제
+  Future<void> _removeFavorite() async {
+    if (_processingFavorite || _favoriteId == null) return;
+
+    // 삭제 확인 다이얼로그
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('즐겨찾기 삭제'),
+        content: const Text('즐겨찾기에서 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child:
+                Text('삭제', style: TextStyle(color: AppColors.secondary.s700)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    setState(() => _processingFavorite = true);
+
+    try {
+      await _favoriteService.removeFavorite(_favoriteId!);
+
+      if (mounted) {
+        setState(() {
+          _isFavorite = false;
+          _favoriteId = null;
+          _processingFavorite = false;
+        });
+        _showSnackBar('즐겨찾기에서 삭제되었습니다.');
+      }
+    } catch (e) {
+      debugPrint('즐겨찾기 삭제 실패: $e');
+      if (mounted) {
+        setState(() => _processingFavorite = false);
+        _showSnackBar('즐겨찾기 삭제에 실패했습니다: $e');
+      }
+    }
+  }
+
+  /// 즐겨찾기 토글
+  void _toggleFavorite() {
+    if (_isFavorite) {
+      _removeFavorite();
+    } else {
+      _addFavorite();
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -44,7 +194,8 @@ class _SlideUpCardState extends State<SlideUpCard> {
     final double bottomPadding = mediaQuery.padding.bottom;
     final double bottomInset = mediaQuery.viewInsets.bottom;
     final double navigationBarHeight = 58.0;
-    final double totalBottomGap = bottomPadding + navigationBarHeight + bottomInset;
+    final double totalBottomGap =
+        bottomPadding + navigationBarHeight + bottomInset;
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -83,13 +234,14 @@ class _SlideUpCardState extends State<SlideUpCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text("오류 발생", style: AppTextStyles.title6),
-                    Image.asset('assets/images/fill_star.png', width: 24, height: 24),
+                    _buildStarButton(),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(
                   error,
-                  style: AppTextStyles.body2_1.copyWith(color: AppColors.grayscale.s600),
+                  style: AppTextStyles.body2_1
+                      .copyWith(color: AppColors.grayscale.s600),
                 ),
                 const Spacer(),
                 Center(
@@ -107,7 +259,7 @@ class _SlideUpCardState extends State<SlideUpCard> {
           final description = location?.description ?? "위치 설명이 없습니다.";
           final floor = location?.floor ?? 0;
           final address = location?.address ?? "주소 정보 없음";
-          final markerIdLabel = widget.markerId ?? "-"; // ✅ 문자열 기본값으로 통일
+          final markerIdLabel = widget.markerId ?? "-";
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,7 +278,9 @@ class _SlideUpCardState extends State<SlideUpCard> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          (floor > 0) ? "$floor층 | ID: $markerIdLabel" : "ID: $markerIdLabel",
+                          (floor > 0)
+                              ? "$floor층 | ID: $markerIdLabel"
+                              : "ID: $markerIdLabel",
                           style: AppTextStyles.body2_1.copyWith(
                             color: AppColors.grayscale.s500,
                             fontSize: 12,
@@ -136,8 +290,7 @@ class _SlideUpCardState extends State<SlideUpCard> {
                       ],
                     ),
                   ),
-                  // 경로 통일 (위쪽과 동일 경로 사용)
-                  Image.asset('assets/images/fill_star.png', width: 24, height: 24),
+                  _buildStarButton(),
                 ],
               ),
               const SizedBox(height: 8),
@@ -173,7 +326,8 @@ class _SlideUpCardState extends State<SlideUpCard> {
                           ),
                           child: Text(
                             "출발",
-                            style: AppTextStyles.body1_3.copyWith(color: AppColors.grayscale.s30),
+                            style: AppTextStyles.body1_3
+                                .copyWith(color: AppColors.grayscale.s30),
                           ),
                         ),
                       ),
@@ -196,7 +350,8 @@ class _SlideUpCardState extends State<SlideUpCard> {
                           ),
                           child: Text(
                             "도착",
-                            style: AppTextStyles.body1_3.copyWith(color: AppColors.primary.s500),
+                            style: AppTextStyles.body1_3
+                                .copyWith(color: AppColors.primary.s500),
                           ),
                         ),
                       ),
@@ -213,6 +368,36 @@ class _SlideUpCardState extends State<SlideUpCard> {
             ],
           );
         }),
+      ),
+    );
+  }
+
+  /// 즐겨찾기 버튼 위젯
+  Widget _buildStarButton() {
+    if (_checkingFavorite) {
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    if (_processingFavorite) {
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _toggleFavorite,
+      child: Image.asset(
+        _isFavorite
+            ? 'assets/images/fill_star.png'
+            : 'assets/images/empty_star.png',
+        width: 24,
+        height: 24,
       ),
     );
   }

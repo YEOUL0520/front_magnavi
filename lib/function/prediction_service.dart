@@ -81,10 +81,9 @@ class Predict {
   }
 
   factory Predict.fromJson(Map<String, dynamic> json) {
-    final List<String> topK = (json['top_k_results'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const <String>[];
+    final List<String> topK =
+        (json['top_k_results'] as List?)?.map((e) => e.toString()).toList() ??
+            const <String>[];
 
     return Predict(
       prediction: _toInt(json['prediction']),
@@ -96,7 +95,7 @@ class Predict {
 
 class PredictApi {
   static Future<Predict?> fetchPrediction(PredictRequest input) async {
-    final url = Uri.parse('http://3.36.52.161:8000/predict');
+    final url = Uri.parse('http://13.125.127.75:8000/predict');
 
     try {
       final response = await http.post(

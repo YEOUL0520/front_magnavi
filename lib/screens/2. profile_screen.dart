@@ -32,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ];
 
   // ---- 사용자 닉네임 로딩용 ----
-  static const String _baseUrl = "http://3.36.52.161:8000";
+  static const String _baseUrl = "http://13.125.127.75:8000";
   String? _userName;
   bool _isLoadingName = true;
 
@@ -100,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
   }
-
 
   Future<void> _loadUserName() async {
     try {
@@ -200,7 +199,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SnackBar(content: Text('닉네임이 변경되었습니다.')),
         );
       } else {
-        debugPrint("PUT /users/me/username failed: ${res.statusCode} ${res.body}");
+        debugPrint(
+            "PUT /users/me/username failed: ${res.statusCode} ${res.body}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('닉네임 변경 실패: ${res.statusCode}')),
         );
@@ -251,7 +251,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(color: AppColors.grayscale.s100, width: 1.0),
-                  bottom: BorderSide(color: AppColors.grayscale.s100, width: 1.0),
+                  bottom:
+                      BorderSide(color: AppColors.grayscale.s100, width: 1.0),
                 ),
               ),
               child: Row(
@@ -305,7 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       default:
         title = "버스/정류장";
         filteredItems = _allFavorites.where((fav) {
-          return fav.type == FavoriteType.bus || fav.type == FavoriteType.busStop;
+          return fav.type == FavoriteType.bus ||
+              fav.type == FavoriteType.busStop;
         }).toList();
         break;
     }
@@ -350,7 +352,8 @@ class _ProfileHeader extends StatelessWidget {
                     .copyWith(color: AppColors.grayscale.s900),
               ),
               IconButton(
-                icon: Icon(Icons.edit, size: 18, color: AppColors.grayscale.s500),
+                icon:
+                    Icon(Icons.edit, size: 18, color: AppColors.grayscale.s500),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () {
@@ -393,7 +396,8 @@ class _ProfileHeader extends StatelessWidget {
             onPressed: () {},
           ),
           IconButton(
-            icon: Image.asset('assets/images/settings.png', width: 24, height: 24),
+            icon: Image.asset('assets/images/settings.png',
+                width: 24, height: 24),
             onPressed: onTapSettings,
           ),
         ],
@@ -607,11 +611,11 @@ class AddAddressSheet extends StatefulWidget {
 
 class _AddAddressSheetState extends State<AddAddressSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _labelCtrl = TextEditingController();          // “우리집”, “회사”, “단골카페”
-  final _addressCtrl = TextEditingController();        // 주소
-  final _customCatCtrl = TextEditingController();      // 자주가는곳 카테고리 텍스트
+  final _labelCtrl = TextEditingController(); // “우리집”, “회사”, “단골카페”
+  final _addressCtrl = TextEditingController(); // 주소
+  final _customCatCtrl = TextEditingController(); // 자주가는곳 카테고리 텍스트
 
-  PlaceKind _kind = PlaceKind.home;                    // 기본값: 집
+  PlaceKind _kind = PlaceKind.home; // 기본값: 집
   bool _submitting = false;
 
   final _favoriteService = FavoriteService();
@@ -659,9 +663,9 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
     try {
       // ✅ 스웨거 스키마대로 POST (버스/정류장 3개는 null)
       await _favoriteService.addFavoritePlacePost(
-        name: _labelCtrl.text.trim(),       // 별칭
-        address: _addressCtrl.text.trim(),  // 주소
-        placeCategory: placeCategory,       // home/work/사용자입력
+        name: _labelCtrl.text.trim(), // 별칭
+        address: _addressCtrl.text.trim(), // 주소
+        placeCategory: placeCategory, // home/work/사용자입력
       );
 
       if (!mounted) return;
@@ -728,8 +732,9 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? '표시 이름을 입력하세요.' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? '표시 이름을 입력하세요.'
+                            : null,
                       ),
                       const SizedBox(height: 14),
 
@@ -751,8 +756,9 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? '주소를 입력하세요.' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? '주소를 입력하세요.'
+                            : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -767,17 +773,20 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                           ChoiceChip(
                             label: const Text('집'),
                             selected: _kind == PlaceKind.home,
-                            onSelected: (_) => setState(() => _kind = PlaceKind.home),
+                            onSelected: (_) =>
+                                setState(() => _kind = PlaceKind.home),
                           ),
                           ChoiceChip(
                             label: const Text('회사'),
                             selected: _kind == PlaceKind.work,
-                            onSelected: (_) => setState(() => _kind = PlaceKind.work),
+                            onSelected: (_) =>
+                                setState(() => _kind = PlaceKind.work),
                           ),
                           ChoiceChip(
                             label: const Text('자주가는곳'),
                             selected: _kind == PlaceKind.custom,
-                            onSelected: (_) => setState(() => _kind = PlaceKind.custom),
+                            onSelected: (_) =>
+                                setState(() => _kind = PlaceKind.custom),
                           ),
                         ],
                       ),
@@ -792,8 +801,8 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('자주가는곳 이름',
-                                      style: AppTextStyles.caption2_1
-                                          .copyWith(color: AppColors.grayscale.s500)),
+                                      style: AppTextStyles.caption2_1.copyWith(
+                                          color: AppColors.grayscale.s500)),
                                   const SizedBox(height: 6),
                                   TextFormField(
                                     controller: _customCatCtrl,
@@ -804,8 +813,9 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 12),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 12),
                                     ),
                                   ),
                                 ],
@@ -827,11 +837,15 @@ class _AddAddressSheetState extends State<AddAddressSheet> {
                           ),
                           child: _submitting
                               ? SizedBox(
-                                  height: 22, width: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.grayscale.s30),
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.grayscale.s30),
                                 )
                               : Text('저장',
-                                  style: AppTextStyles.title7.copyWith(color: AppColors.grayscale.s30)),
+                                  style: AppTextStyles.title7.copyWith(
+                                      color: AppColors.grayscale.s30)),
                         ),
                       ),
                     ],

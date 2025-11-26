@@ -34,7 +34,7 @@ class LocationDto {
 /// - markerId 변화 감지 → 자동 조회
 /// - 캐시/TTL 내장
 class LocationService extends GetxController {
-  static const String _base = 'http://3.36.52.161:8000';
+  static const String _base = 'http://13.125.127.75:8000';
   static const Duration _timeout = Duration(seconds: 6);
   static const Duration _ttl = Duration(minutes: 5);
 
@@ -99,8 +99,7 @@ class LocationService extends GetxController {
   Future<LocationDto?> fetchByIdDirect(String id) async {
     final uri = Uri.parse('$_base/locations/$id');
     final res = await http
-        .get(uri, headers: {'accept': 'application/json'})
-        .timeout(_timeout);
+        .get(uri, headers: {'accept': 'application/json'}).timeout(_timeout);
 
     if (res.statusCode == 200) {
       final dto = LocationDto.fromJson(jsonDecode(res.body));

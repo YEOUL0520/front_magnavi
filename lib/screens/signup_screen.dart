@@ -61,7 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://3.36.52.161:8000/users/signup'),
+        Uri.parse('http://13.125.127.75:8000/users/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "userId": userId,
@@ -156,7 +156,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   obscureText: _obscureConfirmPw,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPw ? Icons.visibility_off : Icons.visibility,
+                      _obscureConfirmPw
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: AppColors.grayscale.s500,
                     ),
                     onPressed: () {

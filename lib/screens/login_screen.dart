@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
   bool _isLoading = false;
 
-  static const LOGIN_API_URL = "http://3.36.52.161:8000/users/login";
+  static const LOGIN_API_URL = "http://13.125.127.75:8000/users/login";
   static const KAKAO_LOGIN_API_URL = "실제 api 주소";
 
   @override
@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
           "username": id,
           "password": pw,
           "scope": "",
-          },
+        },
       );
 
       if (!mounted) return;
@@ -91,13 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
         await _secure.write(key: 'access_token', value: accessToken);
         await _secure.write(key: 'token_type', value: tokenType ?? 'bearer');
 
-
         // ✅ 홈으로 이동
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (_, __, ___) => const MainScaffold(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
             transitionDuration: const Duration(milliseconds: 400),
           ),
         );
@@ -106,8 +106,9 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(content: Text("아이디 또는 비밀번호가 올바르지 않습니다.")),
         );
       } else {
-        final msg =
-            (response.body.isNotEmpty) ? response.body : "code ${response.statusCode}";
+        final msg = (response.body.isNotEmpty)
+            ? response.body
+            : "code ${response.statusCode}";
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("로그인 실패: $msg, ${response.statusCode}")),
         );
@@ -135,7 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 80),
                 Text(
                   '환영합니다!',
-                  style: AppTextStyles.title1.copyWith(color: AppColors.primary.s500),
+                  style: AppTextStyles.title1
+                      .copyWith(color: AppColors.primary.s500),
                 ),
                 const SizedBox(height: 40),
 
@@ -154,18 +156,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           horizontal: 16, vertical: 16),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 1),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 1),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 2),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 2),
                       ),
                     ),
                   ),
@@ -187,22 +189,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           horizontal: 16, vertical: 16),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 1),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 1),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppColors.grayscale.s500, width: 2),
+                        borderSide: BorderSide(
+                            color: AppColors.grayscale.s500, width: 2),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureText ? Icons.visibility_off : Icons.visibility,
+                          _obscureText
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: AppColors.grayscale.s500,
                         ),
                         onPressed: () =>
@@ -232,13 +236,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: AppColors.grayscale.s30),
+                                  strokeWidth: 2,
+                                  color: AppColors.grayscale.s30),
                             )
                           : Text(
                               '로그인',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.title7
-                                  .copyWith(color: AppColors.grayscale.s30, height: 1.0),
+                              style: AppTextStyles.title7.copyWith(
+                                  color: AppColors.grayscale.s30, height: 1.0),
                             ),
                     ),
                   ),
@@ -267,8 +272,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         : Text(
                             '디버그 모드',
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.title7
-                                .copyWith(color: AppColors.grayscale.s30, height: 1.0),
+                            style: AppTextStyles.title7.copyWith(
+                                color: AppColors.grayscale.s30, height: 1.0),
                           ),
                   ),
                 ),
