@@ -13,7 +13,8 @@ import '2. profile_screen.dart';
 import 'panels/1. home_panel.dart' show HomePanel;
 import 'panels/2. transport_panel.dart' show TransitPanel;
 import 'panels/3. map_panel.dart' show NearbyPanel;
-import 'panels/4. search_panel.dart' show DirectionsPanel;
+import 'panels/4. search_panel.dart'
+    show DirectionsPanel, DirectionsPanelMode;
 
 enum PanelType { home, transit, nearby, directions }
 
@@ -27,8 +28,12 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   // ---- Config ----
   static const double _peekSize = 0.08;     // 빼꼼
-  static const double _expandedSize = 0.33; // 기본 펼침
+  static const double _expandedSize = 0.39; // 기본 펼침
   static const double _maxSize = 0.92;
+
+  // 길찾기 패널 전용 권장 사이즈
+  static const double _directionsSummarySize = 0.29;    // 결과 요약
+  static const double _directionsNavigationSize = 0.23; // 내비 안내
 
   final _dragController = DraggableScrollableController();
   final ValueNotifier<double> _panelHeightPx = ValueNotifier<double>(0);
@@ -47,18 +52,15 @@ class _MainScaffoldState extends State<MainScaffold> {
       _panelHeightPx.value = _panelVisible ? (_dragController.size * h) : 0;
     });
 
-    // ✅ 첫 프레임에서 피크 높이 반영 (버튼이 패널 위로 올라오게)
+    // ✅ 첫 프레임에서 피크 높이 반영
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final h = MediaQuery.of(context).size.height;
       _panelHeightPx.value = _panelVisible ? (h * _peekSize) : 0;
-
-      // 처음부터 펼친 상태로 시작하려면 아래 주석 해제
-      // _expandToDefault(PanelType.home);
     });
   }
 
-  // 🔸 한 프레임 대기(트리/레이아웃 반영 후)
+  // 🔸 한 프레임 대기
   Future<void> _nextFrame() async {
     final c = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((_) => c.complete());
@@ -74,7 +76,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   bool get _isAttached => _dragController.isAttached;
   bool get _isOpen => _isAttached && _dragController.size > _peekSize + 0.02;
 
-  // 외부/홈에서 호출: 패널 피크로 접기(타입은 유지)
+  // 패널 접기
   Future<void> _collapseToPeek() async {
     if (!_panelVisible || !_dragController.isAttached) return;
     await _dragController.animateTo(
@@ -85,7 +87,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     setState(() {});
   }
 
-  // 펼치기
+  // 패널 펼치기 (기본)
   Future<void> _expandToDefault([PanelType? to]) async {
     if (to != null) setState(() => _panel = to);
     await _waitForAttach();
@@ -104,14 +106,19 @@ class _MainScaffoldState extends State<MainScaffold> {
     }
   }
 
-  // 인덱스 → 패널 타입 매핑
+  // 인덱스 → 패널 타입
   PanelType _panelForIndex(int i) {
     switch (i) {
-      case 0: return PanelType.home;
-      case 1: return PanelType.transit;
-      case 2: return PanelType.nearby;
-      case 3: return PanelType.directions;
-      default: return PanelType.home;
+      case 0:
+        return PanelType.home;
+      case 1:
+        return PanelType.transit;
+      case 2:
+        return PanelType.nearby;
+      case 3:
+        return PanelType.directions;
+      default:
+        return PanelType.home;
     }
   }
 
@@ -128,22 +135,19 @@ class _MainScaffoldState extends State<MainScaffold> {
     }
 
     final nextPanel = _panelForIndex(i);
-    final wasHidden = !_panelVisible;                      // 🔸 직전 상태 기억
+    final wasHidden = !_panelVisible;
     final isSamePanel = (_panel == nextPanel) && _panelVisible;
 
-    // 우선 보이게 + 패널 타입 확정 (컨트롤러 attach 준비)
     setState(() {
       _currentIndex = i;
       _panelVisible = true;
       _panel = nextPanel;
     });
 
-    // 🔸 방금까지 숨김이었다면 Draggable이 attach되도록 한 프레임 대기
     if (wasHidden) {
-      await _nextFrame();
+      await _nextFrame(); // attach 대기
     }
 
-    // 같은 탭이면 토글, 아니면 항상 펼치기
     if (isSamePanel) {
       if (_isOpen) {
         await _collapseToPeek();
@@ -157,6 +161,31 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   bool get _showSearchBar => _currentIndex != 4;
 
+  // 🔸 DirectionsPanel 이 모드 바꿀 때 패널 높이 조정
+  void _onDirectionsModeChanged(DirectionsPanelMode mode) {
+    if (_panel != PanelType.directions) return;
+    if (!_dragController.isAttached) return;
+
+    double target;
+    switch (mode) {
+      case DirectionsPanelMode.search:
+        target = _expandedSize; // 검색 화면은 기존 기본 펼침
+        break;
+      case DirectionsPanelMode.summary:
+        target = _directionsSummarySize; // 결과 요약 (스크린샷처럼 살짝만)
+        break;
+      case DirectionsPanelMode.navigation:
+        target = _directionsNavigationSize; // 내비 안내는 더 작게
+        break;
+    }
+
+    _dragController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 230),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bodyIndex = (_currentIndex == 4) ? 1 : 0;
@@ -166,14 +195,14 @@ class _MainScaffoldState extends State<MainScaffold> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
 
-        // 펼쳐져 있으면 먼저 피크로
         if (_panelVisible && _isOpen) {
           await _collapseToPeek();
           return;
         }
 
         final now = DateTime.now();
-        if (_lastBackPressed == null || now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
+        if (_lastBackPressed == null ||
+            now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
           _lastBackPressed = now;
           final m = ScaffoldMessenger.of(context);
           m.hideCurrentSnackBar();
@@ -198,13 +227,13 @@ class _MainScaffoldState extends State<MainScaffold> {
         body: SafeArea(
           child: Stack(
             children: [
-              // 홈 / 내정보만 전환 (홈은 상태 유지)
+              // 홈 / 내정보
               IndexedStack(
                 index: bodyIndex,
                 children: [
                   HomeScreen(
                     bottomInsetListenable: _panelHeightPx,
-                    onRequestCollapsePanel: _collapseToPeek, // 마커 탭 시 피크로 접기
+                    onRequestCollapsePanel: _collapseToPeek,
                   ),
                   const ProfileScreen(),
                 ],
@@ -213,12 +242,13 @@ class _MainScaffoldState extends State<MainScaffold> {
               if (_showSearchBar)
                 SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 16, left: 20, right: 20),
+                    padding:
+                        const EdgeInsets.only(top: 16, left: 20, right: 20),
                     child: CustomSearchBar(),
                   ),
                 ),
 
-              // 🔸 패널: 프로필에선 렌더링 안 함(숨김 시 트리에서 제거)
+              // 패널
               if (_panelVisible)
                 _PeekablePanel(
                   controller: _dragController,
@@ -236,10 +266,14 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   String _titleFor(PanelType p) {
     switch (p) {
-      case PanelType.home:       return '홈';
-      case PanelType.transit:    return '대중교통';
-      case PanelType.nearby:     return '내 주변';
-      case PanelType.directions: return '길찾기';
+      case PanelType.home:
+        return '홈';
+      case PanelType.transit:
+        return '대중교통';
+      case PanelType.nearby:
+        return '내 주변';
+      case PanelType.directions:
+        return '길찾기';
     }
   }
 
@@ -252,7 +286,10 @@ class _MainScaffoldState extends State<MainScaffold> {
       case PanelType.nearby:
         return NearbyPanel(controller: sc);
       case PanelType.directions:
-        return DirectionsPanel(controller: sc);
+        return DirectionsPanel(
+          controller: sc,
+          onModeChanged: _onDirectionsModeChanged, // 👈 모드 콜백 연결
+        );
     }
   }
 }
@@ -274,51 +311,114 @@ class _PeekablePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const snapCandidates = <double>[0.08, 0.23, 0.29, 0.39, 0.5, 0.8];
+
+    // 헤더 드래그 → 시트 높이로 변환
+    void _onHeaderDragUpdate(DragUpdateDetails details) {
+      if (!controller.isAttached) return;
+      final h = MediaQuery.of(context).size.height;
+      final dy = details.primaryDelta ?? 0.0; // +아래 / -위
+      final current = controller.size;
+      final target = (current - dy / h).clamp(peekSize, maxSize);
+      controller.jumpTo(target);
+    }
+
+    // 드래그 종료 → 가까운 스냅으로
+    void _onHeaderDragEnd(DragEndDetails details) {
+      if (!controller.isAttached) return;
+      final v = details.primaryVelocity ?? 0.0; // +아래 / -위
+      double current = controller.size;
+
+      double pick;
+      if (v.abs() > 300) {
+        if (v < 0) {
+          // 위로 플릭 → 더 큰 스냅으로
+          final ups =
+              snapCandidates.where((s) => s > current).toList()..sort();
+          pick = ups.isNotEmpty ? ups.first : current;
+        } else {
+          // 아래로 플릭 → 더 작은 스냅으로
+          final downs =
+              snapCandidates.where((s) => s < current).toList()..sort();
+          pick = downs.isNotEmpty ? downs.last : current;
+        }
+      } else {
+        // 속도 작으면 가장 가까운 스냅
+        pick = snapCandidates.reduce(
+          (a, b) =>
+              (a - current).abs() < (b - current).abs() ? a : b,
+        );
+      }
+
+      pick = pick.clamp(peekSize, maxSize);
+      controller.animateTo(
+        pick,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
     return Positioned.fill(
       child: DraggableScrollableSheet(
         controller: controller,
         initialChildSize: peekSize,
-        minChildSize: peekSize, // 아래로 내리면 피크에 머무름(비활성X)
+        minChildSize: peekSize,
         maxChildSize: maxSize,
         snap: true,
-        snapSizes: const [0.08, 0.33, 0.5, 0.8],
+        snapSizes: snapCandidates,
         builder: (context, scrollController) {
           return Align(
             alignment: Alignment.bottomCenter,
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.grayscale.s30,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.grayscale.s900.withOpacity(0.06),
+                    color:
+                        AppColors.grayscale.s900.withOpacity(0.06),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Column(
                   children: [
-                    // 헤더(그랩바 + 타이틀)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 6),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 44, height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.grayscale.s900,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
+                    // ✅ 헤더 전체(원래 높이 그대로)를 드래그 핸들로
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque, // 빈 여백도 터치 인식
+                      onVerticalDragUpdate: _onHeaderDragUpdate,
+                      onVerticalDragEnd: _onHeaderDragEnd,
+                      child: SizedBox(
+                        width: double.infinity, // 전체 폭 확보
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.only(top: 8, bottom: 6),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.grayscale.s900,
+                                  borderRadius:
+                                      BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                title,
+                                style: AppTextStyles.title6.copyWith(
+                                  color: AppColors.grayscale.s900,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            title,
-                            style: AppTextStyles.title6.copyWith(color: AppColors.grayscale.s900),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const Divider(height: 1),
