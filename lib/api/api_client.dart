@@ -9,7 +9,7 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  final String _baseUrl = 'http://3.36.52.161:8000';
+  final String _baseUrl = 'http://13.125.127.75:8000';
   final _secureStorage = const FlutterSecureStorage();
 
   Future<Map<String, String>> _getHeaders() async {

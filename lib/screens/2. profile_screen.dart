@@ -32,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ];
 
   // ---- 사용자 닉네임 로딩용 ----
-  static const String _baseUrl = "http://3.36.52.161:8000";
+  static const String _baseUrl = "http://13.125.127.75:8000";
   String? _userName;
   bool _isLoadingName = true;
 

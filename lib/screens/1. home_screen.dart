@@ -90,28 +90,44 @@ class _HomeScreenState extends State<HomeScreen> {
               final double dynamicBottom = math.max(48.0, panelHeight + 12.0);
 
               return AnimatedPositioned(
-                duration: const Duration(milliseconds: 180),
+                duration: const Duration(milliseconds: 1),
                 curve: Curves.easeOutCubic,
                 right: 16,
                 bottom: dynamicBottom,
                 child: SafeArea(
                   left: false, top: false, right: false, bottom: true,
                   child: Material(
-                    elevation: 4,
-                    shape: const CircleBorder(),
-                    color: AppColors.grayscale.s30,
+                    // 👇 그림자 제거
+                    elevation: 0,
+                    type: MaterialType.transparency,
                     child: InkWell(
                       customBorder: const CircleBorder(),
+                      // 👇 눌렀을 때 애니메이션 제거
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
                       onTap: () {
                         if (_isIndoorMode) {
-                          IndoorMapScreenStateHolder.state?.centerToCurrentPosition();
+                          IndoorMapScreenStateHolder.state
+                              ?.centerToCurrentPosition();
                         } else {
-                          OutdoorMapScreenStateHolder.state?.moveToCurrentLocation();
+                          OutdoorMapScreenStateHolder.state
+                              ?.moveToCurrentLocation();
                         }
                       },
-                      child: const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Icon(Icons.my_location, color: Colors.black87),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.grayscale.s30,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.grayscale.s300,
+                          )
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: const Icon(
+                          Icons.my_location,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ),
