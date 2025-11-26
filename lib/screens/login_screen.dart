@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
   bool _isLoading = false;
 
-  static const LOGIN_API_URL = "http://3.36.52.161:8000/users/login";
+  static const LOGIN_API_URL = "http://13.125.127.75:8000/users/login";
   static const KAKAO_LOGIN_API_URL = "실제 api 주소";
 
   @override
